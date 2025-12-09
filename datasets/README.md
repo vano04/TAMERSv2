@@ -2,7 +2,7 @@
 
 For ease of use please download the following datasets using these commands in **this** directory:
 
-Precomputed LAION' got talent enhanced:
+Precomputed LAION's got talent enhanced:
 ```bash
 hf download Vano04/laions-got-talent-enhanced-precomputed-en --repo-type dataset --local-dir LAION
 ```
