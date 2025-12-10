@@ -1,15 +1,18 @@
+#!/usr/bin/env python3
+
 """
 Script to scan directory for .tar files and unpack them into organized structure:
 audio/language/emotion/
 """
-
-import os
-import tarfile
+from typing import Tuple, Any
+from concurrent import futures
+import glob
 import json
+import os
 import subprocess
+import sys
+import tarfile
 import tempfile
-import shutil
-from pathlib import Path
 
 
 def get_emotion_from_filename(tar_filename):
@@ -38,6 +41,7 @@ def convert_to_wav_16khz(input_path, output_path):
         '-ar', '16000',  # 16kHz sample rate
         '-ac', '1',      # mono
         '-y',            # overwrite output
+        '-threads', '1',
         output_path
     ]
     try:
@@ -69,8 +73,9 @@ def get_transcript_from_json(json_path):
         return ""
 
 
-def process_tar_file(tar_path, output_base_dir):
+def process_tar_file(args: Tuple[Any]):
     """Process a single tar file and organize its contents."""
+    tar_path, output_base_dir = args
     tar_filename = os.path.basename(tar_path)
     language = get_language_from_filename(tar_filename)
     emotion = get_emotion_from_filename(tar_filename)
@@ -145,21 +150,17 @@ def main():
     print("-" * 50)
     
     # Find all .tar files in the directory
-    tar_files = [f for f in os.listdir(script_dir) if f.endswith('.tar')]
+    tar_files = glob.glob(os.path.join(script_dir, "*.tar"))
     
     if not tar_files:
-        print("No .tar files found in the directory.")
-        return
+        sys.exit("No .tar files found in the directory.")
     
     print(f"Found {len(tar_files)} tar file(s)")
     print("-" * 50)
     
-    total_files = 0
-    for tar_file in tar_files:
-        tar_path = os.path.join(script_dir, tar_file)
-        count = process_tar_file(tar_path, script_dir)
-        total_files += count
-    
+    with futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        total_files = sum(executor.map(process_tar_file, ((p, script_dir) for p in tar_files)))
+         
     print("-" * 50)
     print(f"Processing complete! Total audio files converted: {total_files}")
 
